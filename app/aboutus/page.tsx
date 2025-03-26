@@ -12,19 +12,19 @@ export default function AboutUsPage() {
 
   const team = [
     {
-      name: "Dr. Priya Sharma",
-      role: "Founder & Director",
-      image: "/team/founder.jpg", // Add team member images to public/team directory
+      name: "Alon Joy Kachhap",
+      // role: "Founder & Director",
+      image: "/images/team/Alon.jpg", // Add team member images to public/team directory
     },
     {
-      name: "Rahul Kumar",
-      role: "Operations Head",
-      image: "/team/operations.jpg",
+      name: "Lins Varghese",
+      // role: "Operations Head",
+      image: "images/team/Lins.jpg",
     },
     {
-      name: "Anita Patel",
-      role: "Veterinary Director",
-      image: "/team/vet.jpg",
+      name: "Shobhit Lakra",
+      // role: "Veterinary Director",
+      image: "images/team/Shobhit.jpg",
     },
   ];
 
@@ -75,7 +75,7 @@ export default function AboutUsPage() {
               </div>
               <div className="p-6 text-center">
                 <h3 className="font-bold text-xl mb-1">{member.name}</h3>
-                <p className="text-muted-foreground">{member.role}</p>
+                {/* <p className="text-muted-foreground">{member.role}</p> */}
               </div>
             </Card>
           ))}

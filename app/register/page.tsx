@@ -50,7 +50,7 @@ export default function RegisterPage() {
                 <li>✓ Connect with organizations</li>
               </ul>
               <Button className="w-full" asChild>
-                <Link href="/register/volunteer">Register as Volunteer</Link>
+                <Link href="/register/volunteer-registration">Register as Volunteer</Link>
               </Button>
             </div>
           </Card>
