@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { submitVolunteerForm } from "./actions";
+import { volunteerFormSchema } from "./schemas";
 
 const referralSources = [
   { value: "social-media", label: "Social Media" },
@@ -26,67 +28,7 @@ const referralSources = [
   { value: "other", label: "Other" },
 ] as const;
 
-// Create a new validation schema
-const volunteerFormSchema = z.object({
-  firstName: z.string({
-    required_error: "First name is required",
-  }).min(2, {
-    message: "First name must be at least 2 characters.",
-  }),
-  lastName: z.string({
-    required_error: "Last name is required",
-  }).min(2, {
-    message: "Last name must be at least 2 characters.",
-  }),
-  email: z.string({
-    required_error: "Email is required",
-  }).email({
-    message: "Please enter a valid email address.",
-  }),
-  phone: z.string({
-    required_error: "Phone number is required",
-  }).regex(/^\+?[1-9]\d{1,14}$/, {
-    message: "Please enter a valid phone number.",
-  }),
-  address: z.object({
-    street: z.string({
-      required_error: "Street address is required",
-    }),
-    city: z.string({
-      required_error: "City is required",
-    }),
-    state: z.string({
-      required_error: "State is required",
-    }),
-    zip: z.string({
-      required_error: "ZIP code is required",
-    }).regex(/^\d{5}(-\d{4})?$/, {
-      message: "Please enter a valid ZIP code.",
-    }),
-  }),
-  aboutYourself: z.string().min(10, {
-    message: "Please tell us about yourself (minimum 10 characters).",
-  }),
-  referralSource: z.enum(["social-media", "friend", "website", "event", "other"], {
-    required_error: "Please select how you heard about us.",
-  }),
-});
-
 type VolunteerFormValues = z.infer<typeof volunteerFormSchema>;
-
-// Add this action to handle form submission
-const submitVolunteerForm = async (data: VolunteerFormValues) => {
-  "use server";
-  
-  try {
-    // Add your form submission logic here
-    // For example, saving to a database
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulated delay
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: "Failed to submit form. Please try again." };
-  }
-};
 
 export default function VolunteerRegistrationPage() {
   const router = useRouter();
@@ -238,9 +180,9 @@ export default function VolunteerRegistrationPage() {
                     name="address.zip"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>ZIP Code *</FormLabel>
+                        <FormLabel>PIN Code *</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} placeholder="Enter 6-digit PIN code" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -269,26 +211,21 @@ export default function VolunteerRegistrationPage() {
                 control={form.control}
                 name="referralSource"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="space-y-3">
                     <FormLabel>How did you hear about us? *</FormLabel>
                     <FormControl>
                       <RadioGroup
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex flex-col space-y-1"
+                        value={field.value}
+                        className="flex flex-col space-y-2"
                       >
                         {referralSources.map((source) => (
-                          <FormItem
-                            key={source.value}
-                            className="flex items-center space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <RadioGroupItem value={source.value} />
-                            </FormControl>
-                            <FormLabel className="font-normal">
+                          <div key={source.value} className="flex items-center space-x-2">
+                            <RadioGroupItem id={source.value} value={source.value} />
+                            <FormLabel htmlFor={source.value} className="font-normal cursor-pointer">
                               {source.label}
                             </FormLabel>
-                          </FormItem>
+                          </div>
                         ))}
                       </RadioGroup>
                     </FormControl>

@@ -1,15 +1,18 @@
 "use server";
 
-import { VolunteerFormValues } from "@/lib/schemas/volunteer";
-import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { volunteerFormSchema } from "./schemas";
+
+export type VolunteerFormValues = z.infer<typeof volunteerFormSchema>;
 
 export async function submitVolunteerForm(data: VolunteerFormValues) {
   try {
-    // Add your database logic here
-    // For example, using Prisma:
-    // await prisma.volunteer.create({ data });
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    revalidatePath("/volunteer");
+    // Add your database logic here
+    console.log("Form data received:", data);
+    
     return { success: true };
   } catch (error) {
     return { 

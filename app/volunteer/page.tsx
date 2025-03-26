@@ -2,6 +2,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Button } from "@/components/ui/button";
+import { redirectToLogin } from "@/lib/utils/auth";
 
 interface VolunteerStory {
   name: string;
@@ -51,7 +53,7 @@ const volunteerStories: VolunteerStory[] = [
   // Continue with more stories...
 ];
 
-const VolunteerPage = () => {
+export default function VolunteerPage() {
   const [showContent, setShowContent] = useState(false);
   const storiesRef = useRef<HTMLDivElement>(null);
 
@@ -80,7 +82,7 @@ const VolunteerPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <section className="parallax-bg relative h-screen">
+      <section className="relative h-[610px] overflow-hidden">
         <div 
           className="absolute inset-0"
           style={{
@@ -91,17 +93,17 @@ const VolunteerPage = () => {
           }}
         />
         <div className="absolute inset-0 bg-black/60" />
-        
         <div className="relative z-10 h-full flex flex-col items-center justify-center text-white">
-          <h1 
-            className={`text-6xl font-bold mb-8 ${
-              showContent ? 'fade-in-up' : 'opacity-0'
-            }`}
-            style={{ animationDelay: '0.3s' }}
-          >
-            Volunteer
-          </h1>
-          
+          <div className="absolute top-4 right-4">
+            {/* <Button 
+              variant="outline" 
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+              onClick={() => redirectToLogin("volunteer")}
+            >
+              Volunteer Login
+            </Button> */}
+          </div>
+          <h1 className="text-5xl font-bold mb-8">Volunteer</h1>
           <a 
             href="#volunteer-info"
             className="mt-16 p-4 rounded-full bg-primary/80 hover:bg-primary transition-colors bounce"
@@ -154,12 +156,21 @@ const VolunteerPage = () => {
                 </a>{' '}
                 or register using the button below.
               </p>
-              <Link 
-                href="/volunteer/register"
-                className="inline-block bg-primary text-primary-foreground px-6 py-3 rounded-md hover:bg-primary/90 transition"
-              >
-                Register as Volunteer
-              </Link>
+              <div className="flex gap-4">
+                <Link 
+                  href="/volunteer/register"
+                  className="inline-block bg-primary text-primary-foreground px-6 py-3 rounded-md hover:bg-primary/90 transition"
+                >
+                  Register as Volunteer
+                </Link>
+                <Button
+                  variant="secondary"
+                  onClick={() => redirectToLogin("volunteer")}
+                  className="px-6 py-3"
+                >
+                  Volunteer Login
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -207,5 +218,3 @@ const VolunteerPage = () => {
     </div>
   );
 };
-
-export default VolunteerPage;

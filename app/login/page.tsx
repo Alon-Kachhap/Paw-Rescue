@@ -1,97 +1,117 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 
 const LoginPage: React.FC = () => {
-  const [loginType, setLoginType] = useState<"volunteer" | "organization">("volunteer");
+  const router = useRouter();
+  const [loginType, setLoginType] = useState<"volunteer" | "organization">(() => {
+    // Check for stored preference on component mount
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('preferredLoginType');
+      return (stored === 'organization' ? 'organization' : 'volunteer') as "volunteer" | "organization";
+    }
+    return 'volunteer';
+  });
+
+  useEffect(() => {
+    // Clear the stored preference after it's been used
+    localStorage.removeItem('preferredLoginType');
+  }, []);
 
   const handleLoginTypeChange = (type: "volunteer" | "organization") => {
     setLoginType(type);
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (loginType === "volunteer") {
-      alert("Redirecting to Volunteer Dashboard...");
-      // Add redirection logic here (e.g., router.push("/volunteer/dashboard"))
-    } else if (loginType === "organization") {
-      alert("Redirecting to Organization Dashboard...");
-      // Add redirection logic here (e.g., router.push("/organization/dashboard"))
+    try {
+      // Add your authentication logic here
+      toast.success(`Successfully logged in as ${loginType}`);
+      router.push(`/${loginType}/dashboard`);
+    } catch (error) {
+      toast.error("Invalid credentials");
     }
   };
 
   return (
-    <div>
-      <div className="flex justify-center mb-6">
-        <button
-          onClick={() => handleLoginTypeChange("volunteer")}
-          className={`px-4 py-2 rounded-md mr-4 ${
-            loginType === "volunteer" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-          }`}
-        >
-          Volunteer Login
-        </button>
-        <button
-          onClick={() => handleLoginTypeChange("organization")}
-          className={`px-4 py-2 rounded-md ${
-            loginType === "organization" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-          }`}
-        >
-          Organization Login
-        </button>
-      </div>
-
-      <div className="text-center mb-6">
-        {loginType === "volunteer" ? (
-          <p className="text-muted-foreground">
-            Welcome, Volunteer! Join us in making a difference by contributing your time and skills to our cause.
-          </p>
-        ) : (
-          <p className="text-muted-foreground">
-            Welcome, Organization! Manage your events, resources, and connect with volunteers to achieve your goals.
-          </p>
-        )}
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label
-            htmlFor="email"
-            className="block text-sm font-medium text-muted-foreground mb-2"
-          >
-            Email Address:
-          </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            placeholder="Enter your email"
-            className="w-full px-4 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-            required
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-muted-foreground mb-2"
-          >
-            Password:
-          </label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            placeholder="Enter your password"
-            className="w-full px-4 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-muted transition duration-200"
-        >
-          Sign In
-        </button>
-      </form>
+    <div className="min-h-screen bg-background grid place-items-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-6">
+          <div className="flex justify-center space-x-2">
+            <Button
+              variant={loginType === "volunteer" ? "default" : "outline"}
+              onClick={() => handleLoginTypeChange("volunteer")}
+              className="flex-1 max-w-[160px]"
+            >
+              Volunteer Login
+            </Button>
+            <Button
+              variant={loginType === "organization" ? "default" : "outline"}
+              onClick={() => handleLoginTypeChange("organization")}
+              className="flex-1 max-w-[160px]"
+            >
+              Organization Login
+            </Button>
+          </div>
+          <div className="space-y-2">
+            <CardTitle className="text-2xl text-center">
+              Welcome Back
+            </CardTitle>
+            <CardDescription className="text-center">
+              {loginType === "volunteer" 
+                ? "Continue your journey of making a difference"
+                : "Manage your organization and connect with volunteers"
+              }
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <Label htmlFor="email" className="text-center block">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  required
+                  className="text-center"
+                />
+              </div>
+              <div className="space-y-3">
+                <Label htmlFor="password" className="text-center block">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  required
+                  className="text-center"
+                />
+              </div>
+            </div>
+            <div className="space-y-6">
+              <Button type="submit" className="w-full">
+                Sign In
+              </Button>
+              <div className="text-sm text-center">
+                <span className="text-muted-foreground">Don't have an account? </span>
+                <Button 
+                  variant="link" 
+                  className="px-1"
+                  onClick={() => router.push(`/register/${loginType}-registration`)}
+                >
+                  Register here
+                </Button>
+              </div>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };

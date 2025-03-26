@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { PawPrint } from "lucide-react";
 import {
@@ -14,6 +14,13 @@ import {
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleOrgLogin = () => {
+    // Store the login type preference in localStorage
+    localStorage.setItem('preferredLoginType', 'organization');
+    router.push('/login');
+  };
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -59,19 +66,19 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link href="/login/donate">Donate</Link>
+                  <Link href="/donate">Donate</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/login/Adopt">Adopt</Link>
+                  <Link href="/adopt">Adopt</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/login/foster">Foster</Link>
+                  <Link href="/foster">Foster</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/volunteer">Volunteer</Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/login/organization">Organization Login</Link>
+                <DropdownMenuItem onClick={handleOrgLogin}>
+                  Organization
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
