@@ -158,7 +158,7 @@ export default function VolunteerPage() {
               </p>
               <div className="flex gap-4">
                 <Link 
-                  href="/volunteer/register"
+                  href="/register/volunteer-registration"
                   className="inline-block bg-primary text-primary-foreground px-6 py-3 rounded-md hover:bg-primary/90 transition"
                 >
                   Register as Volunteer
