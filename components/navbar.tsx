@@ -11,31 +11,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useSession } from "next-auth/react"; 
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session } = useSession(); 
 
   const handleOrgLogin = () => {
-    // Store the login type preference in localStorage
     localStorage.setItem('preferredLoginType', 'organization');
     router.push('/login');
+  };
+
+  const handleGoToDashboard = () => {
+    // For now assuming volunteers only; you can customize this if org login is added
+    router.push("/volunteer/dashboard");
   };
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
-        {/* Logo section - visible on all screen sizes */}
         <div className="flex items-center">
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <PawPrint className="h-6 w-6" />
-            <span className="font-bold">
-              Paw Rescue
-            </span>
+            <span className="font-bold">Paw Rescue</span>
           </Link>
         </div>
 
-        {/* Navigation links - hidden on mobile */}
         <div className="hidden md:flex items-center space-x-6 text-sm font-medium">
           <Link
             href="/organizations"
@@ -57,7 +59,6 @@ export function Navbar() {
           </Link>
         </div>
 
-        {/* Right side menu - always visible */}
         <div className="flex flex-1 items-center justify-end space-x-2">
           <nav className="flex items-center space-x-2">
             <DropdownMenu>
@@ -77,9 +78,17 @@ export function Navbar() {
                 <DropdownMenuItem asChild>
                   <Link href="/volunteer">Volunteer</Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleOrgLogin}>
-                  Organization
-                </DropdownMenuItem>
+
+                {session?.user ? (
+                  <DropdownMenuItem onClick={handleGoToDashboard}>
+                    Dashboard
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={handleOrgLogin}>
+                    Login
+                  </DropdownMenuItem>
+                )}
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/register">Register</Link>

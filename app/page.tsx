@@ -76,7 +76,7 @@ export default function Home() {
             <p className="mx-auto max-w-[600px]">
               Join our community of animal welfare organizations, volunteers, and supporters.
             </p>
-            <Button variant="secondary" size="lg" asChild>
+            <Button variant="default" size="lg" asChild>
               <Link href="/register">Join Paw Rescue Today</Link>
             </Button>
           </div>

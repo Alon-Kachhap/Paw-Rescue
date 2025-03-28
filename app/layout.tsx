@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import { ThemeProvider } from "@/components/theme-provider";
 import { Navbar } from '@/components/navbar';
 import { Toaster } from "@/components/ui/sonner";
+import { ClientProviders } from "@/components/ClientProviders"; 
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -24,16 +25,18 @@ export default function RootLayout({
         <title>{String(metadata.title ?? 'Default Title')}</title>
       </head>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <Navbar />
-          <main>{children}</main>
-          <Toaster />
-        </ThemeProvider>
+        <ClientProviders>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <Navbar />
+            <main>{children}</main>
+            <Toaster />
+          </ThemeProvider>
+        </ClientProviders>
       </body>
     </html>
   );

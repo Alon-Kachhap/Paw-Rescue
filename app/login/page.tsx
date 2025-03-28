@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { signIn } from "next-auth/react";
+
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
@@ -27,14 +29,22 @@ const LoginPage: React.FC = () => {
     setLoginType(type);
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    try {
-      // Add your authentication logic here
-      toast.success(`Successfully logged in as ${loginType}`);
-      router.push(`/${loginType}/dashboard`);
-    } catch (error) {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const email = (e.currentTarget.elements.namedItem("email") as HTMLInputElement).value;
+    const password = (e.currentTarget.elements.namedItem("password") as HTMLInputElement).value;
+  
+    const res = await signIn("credentials", {
+      redirect: false,
+      email,
+      password,
+    });
+  
+    if (res?.error) {
       toast.error("Invalid credentials");
+    } else {
+      toast.success("Logged in successfully!");
+      router.push("/volunteer/dashboard");
     }
   };
 

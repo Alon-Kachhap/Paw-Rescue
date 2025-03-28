@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  password       String
+  firstName      String
+  lastName       String
+  phone          String
+  image          String?    // Cloudflare R2 (optional)
+  about          String
+  referral       ReferralSource
+  street         String
+  city           String
+  state          String
+  zip            String
+  role           Role        @default(VOLUNTEER)
+  organization   Organization? @relation("OrgVolunteers", fields: [organizationId], references: [id])
+  organizationId String?
+  animals        Animal[]    @relation("CreatedBy")
+  createdAt      DateTime    @default(now())
+}
+
+model Organization {
+  id                 String   @id @default(uuid())
+  name               String
+  type               String
+  registrationNumber String   @unique
+  email              String   @unique
+  phone              String
+  address            String
+  website            String?
+  mission            String
+  description        String
+  facebook           String?
+  twitter            String?
+  instagram          String?
+  documentUrl        String?   // Cloudflare R2 (optional)
+  volunteers         User[]    @relation("OrgVolunteers")
+  contentBlocks      SiteContentBlock[]
+  createdAt          DateTime  @default(now())
+}
+
+model Animal {
+  id          String   @id @default(uuid())
+  name        String
+  species     String
+  breed       String?
+  vaccinated  Boolean
+  neutered    Boolean
+  image       String?  // Cloudflare R2 (optional)
+  createdBy   User     @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById String
+  createdAt   DateTime @default(now())
+}
+
+model SiteContentBlock {
+  id             String      @id @default(uuid())
+  type           ContentType
+  content        String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  createdAt      DateTime    @default(now())
+}
+
+model VolunteerRegistration {
+  id             String   @id @default(uuid())
+  firstName      String
+  lastName       String
+  email          String   @unique
+  password       String
+  phone          String
+  street         String
+  city           String
+  state          String
+  zip            String
+  aboutYourself  String
+  referral       ReferralSource
+  verified       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
+
+enum Role {
+  VOLUNTEER
+  ORGANIZATION
+  ADMIN
+}
+
+enum ReferralSource {
+  social_media
+  friend
+  website
+  event
+  other
+}
+
+enum ContentType {
+  banner
+  cta
+  gallery
+  text
+}
