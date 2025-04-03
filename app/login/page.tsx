@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -8,24 +9,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { signIn } from "next-auth/react";
 
-
 const LoginPage: React.FC = () => {
   const router = useRouter();
-  const [loginType, setLoginType] = useState<"volunteer" | "organization">(() => {
-    // Check for stored preference on component mount
+  const [loginType, setLoginType] = useState<"volunteer" | "organization" | "admin">(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('preferredLoginType');
-      return (stored === 'organization' ? 'organization' : 'volunteer') as "volunteer" | "organization";
+      if (stored === "organization" || stored === "admin") return stored as "organization" | "admin";
+      return "volunteer";
     }
-    return 'volunteer';
+    return "volunteer";
   });
 
   useEffect(() => {
-    // Clear the stored preference after it's been used
     localStorage.removeItem('preferredLoginType');
   }, []);
 
-  const handleLoginTypeChange = (type: "volunteer" | "organization") => {
+  const handleLoginTypeChange = (type: "volunteer" | "organization" | "admin") => {
     setLoginType(type);
   };
 
@@ -33,18 +32,31 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     const email = (e.currentTarget.elements.namedItem("email") as HTMLInputElement).value;
     const password = (e.currentTarget.elements.namedItem("password") as HTMLInputElement).value;
-  
-    const res = await signIn("credentials", {
+
+    let provider: string = "credentials"; // volunteer default
+    if (loginType === "organization") {
+      provider = "organization-credentials";
+    } else if (loginType === "admin") {
+      provider = "admin-credentials";
+    }
+
+    const res = await signIn(provider, {
       redirect: false,
       email,
       password,
     });
-  
+
     if (res?.error) {
       toast.error("Invalid credentials");
     } else {
       toast.success("Logged in successfully!");
-      router.push("/volunteer/dashboard");
+      if (loginType === "organization") {
+        router.push("/organizations/dashboard");
+      } else if (loginType === "admin") {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/volunteer/dashboard");
+      }
     }
   };
 
@@ -56,17 +68,18 @@ const LoginPage: React.FC = () => {
             <Button
               variant={loginType === "volunteer" ? "default" : "outline"}
               onClick={() => handleLoginTypeChange("volunteer")}
-              className="flex-1 max-w-[160px]"
+              className="flex-1 max-w-[180px]"
             >
               Volunteer Login
             </Button>
             <Button
               variant={loginType === "organization" ? "default" : "outline"}
               onClick={() => handleLoginTypeChange("organization")}
-              className="flex-1 max-w-[160px]"
+              className="flex-1 max-w-[180px]"
             >
               Organization Login
             </Button>
+            
           </div>
           <div className="space-y-2">
             <CardTitle className="text-2xl text-center">
@@ -75,7 +88,9 @@ const LoginPage: React.FC = () => {
             <CardDescription className="text-center">
               {loginType === "volunteer" 
                 ? "Continue your journey of making a difference"
-                : "Manage your organization and connect with volunteers"
+                : loginType === "organization"
+                  ? "Manage your organization and connect with volunteers"
+                  : "Access admin dashboard"
               }
             </CardDescription>
           </div>

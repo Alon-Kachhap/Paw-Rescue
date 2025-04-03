@@ -16,24 +16,7 @@ export default function RegisterPage() {
 
         <div className="grid gap-6 md:grid-cols-3">
           {/* Organization Registration Card */}
-          <Card className="p-6 hover:shadow-lg transition-shadow">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <Building2 className="h-12 w-12 text-primary" />
-              <h2 className="text-2xl font-bold">Organization</h2>
-              <p className="text-muted-foreground">
-                Register your animal welfare organization and reach more supporters
-              </p>
-              <ul className="text-sm text-muted-foreground space-y-2">
-                <li>✓ Create organization profile</li>
-                <li>✓ Manage rescue operations</li>
-                <li>✓ Accept donations</li>
-                <li>✓ Coordinate volunteers</li>
-              </ul>
-              <Button className="w-full" asChild>
-                <Link href="/register/organization-registration">Register Organization</Link>
-              </Button>
-            </div>
-          </Card>
+          
 
           {/* Volunteer Registration Card */}
           <Card className="p-6 hover:shadow-lg transition-shadow">
@@ -56,24 +39,7 @@ export default function RegisterPage() {
           </Card>
 
           {/* Donor Registration Card */}
-          <Card className="p-6 hover:shadow-lg transition-shadow">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <Heart className="h-12 w-12 text-primary" />
-              <h2 className="text-2xl font-bold">Donor</h2>
-              <p className="text-muted-foreground">
-                Support animal welfare through donations and sponsorships
-              </p>
-              <ul className="text-sm text-muted-foreground space-y-2">
-                <li>✓ Create donor profile</li>
-                <li>✓ Track your donations</li>
-                <li>✓ Get tax receipts</li>
-                <li>✓ Support multiple causes</li>
-              </ul>
-              <Button className="w-full" asChild>
-                <Link href="/register/donor">Register as Donor</Link>
-              </Button>
-            </div>
-          </Card>
+          
         </div>
 
         <p className="text-center mt-8 text-sm text-muted-foreground">

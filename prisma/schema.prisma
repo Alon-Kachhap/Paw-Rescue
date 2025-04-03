@@ -31,10 +31,12 @@ model User {
 model Organization {
   id                 String   @id @default(uuid())
   name               String
+  password            String
   type               String
   registrationNumber String   @unique
   email              String   @unique
   phone              String
+  verified    Boolean  @default(false)
   address            String
   website            String?
   mission            String
