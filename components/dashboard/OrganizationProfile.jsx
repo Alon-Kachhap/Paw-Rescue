@@ -1,13 +1,17 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function OrganizationProfile({ organization }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: organization.name,
     type: organization.type,
@@ -30,19 +34,42 @@ export default function OrganizationProfile({ organization }) {
   
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    
     try {
-      const response = await fetch(`/api/organizations/${organization.id}`, {
+      // Use the correct API endpoint based on organization ID
+      const response = await fetch(`/api/organisations/${organization.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
       
-      if (response.ok) {
-        setIsEditing(false);
-        router.refresh();
+      // Get response as text first to properly handle JSON parse errors
+      const responseText = await response.text();
+      console.log(`API response:`, response.status, responseText);
+      
+      let result;
+      try {
+        // Try to parse as JSON if possible
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        console.error("Error parsing response:", parseError);
+        result = { error: responseText || "Unknown error" };
       }
+      
+      if (!response.ok) {
+        const errorMessage = result.error || `Failed to update profile: ${response.status}`;
+        throw new Error(errorMessage);
+      }
+      
+      toast.success("Organization profile updated successfully!");
+      setIsEditing(false);
+      router.refresh();
     } catch (error) {
       console.error("Failed to update profile:", error);
+      toast.error(error.message || "Failed to update profile");
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -54,8 +81,19 @@ export default function OrganizationProfile({ organization }) {
           <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
         ) : (
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
-            <Button onClick={handleSubmit}>Save Changes</Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditing(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </Button>
           </div>
         )}
       </CardHeader>
@@ -96,6 +134,7 @@ export default function OrganizationProfile({ organization }) {
                   value={formData.registrationNumber} 
                   onChange={handleChange} 
                   readOnly={true}
+                  className="bg-gray-100"
                 />
               ) : (
                 <div className="text-lg">{organization.registrationNumber}</div>

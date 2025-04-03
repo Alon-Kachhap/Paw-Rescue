@@ -10,9 +10,9 @@ const prisma = new PrismaClient();
 
 export const authOptions: AuthOptions = {
   providers: [
-    // Volunteer login provider (using volunteerRegistration table)
+    // Volunteer login provider (checking both User and VolunteerRegistration tables)
     CredentialsProvider({
-      id: "credentials", // default id for volunteer login
+      id: "credentials", 
       name: "Volunteer Login",
       credentials: {
         email: { label: "Email", type: "text" },
@@ -22,19 +22,44 @@ export const authOptions: AuthOptions = {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Missing credentials");
         }
-        const user = await prisma.volunteerRegistration.findUnique({
+
+        // First check User table (for verified volunteers)
+        const verifiedUser = await prisma.user.findUnique({
+          where: { 
+            email: credentials.email,
+            role: "VOLUNTEER"
+          },
+        });
+
+        if (verifiedUser) {
+          // User exists in User table
+          const isValid = await bcrypt.compare(credentials.password, verifiedUser.password);
+          if (!isValid) throw new Error("Invalid password");
+          
+          return {
+            id: verifiedUser.id,
+            email: verifiedUser.email,
+            name: `${verifiedUser.firstName} ${verifiedUser.lastName}`,
+            verified: true,
+            role: "volunteer",
+          };
+        }
+
+        // If not found in User table, check VolunteerRegistration table
+        const pendingUser = await prisma.volunteerRegistration.findUnique({
           where: { email: credentials.email },
         });
-        if (!user) throw new Error("User not found");
-        const isValid = await bcrypt.compare(credentials.password, user.password);
+        
+        if (!pendingUser) throw new Error("User not found");
+        
+        const isValid = await bcrypt.compare(credentials.password, pendingUser.password);
         if (!isValid) throw new Error("Invalid password");
+        
         return {
-          id: user.id,
-          email: user.email,
-          // Compute name from firstName and lastName
-          name: `${user.firstName} ${user.lastName}`,
-          // Since volunteerRegistration doesn’t have a verified field, set a default (adjust as needed)
-          verified: false,
+          id: pendingUser.id,
+          email: pendingUser.email,
+          name: `${pendingUser.firstName} ${pendingUser.lastName}`,
+          verified: pendingUser.verified,
           role: "volunteer",
         };
       },

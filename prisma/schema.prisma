@@ -22,9 +22,12 @@ model User {
   state          String
   zip            String
   role           Role        @default(VOLUNTEER)
+  publicProfile  Boolean     @default(false)  // Controls whether profile is visible to public
   organization   Organization? @relation("OrgVolunteers", fields: [organizationId], references: [id])
   organizationId String?
   animals        Animal[]    @relation("CreatedBy")
+  uploads        Media[]    @relation("UploadedBy")
+  stories        VolunteerStory[] @relation("VolunteerStories")
   createdAt      DateTime    @default(now())
 }
 
@@ -47,6 +50,7 @@ model Organization {
   documentUrl        String?   // Cloudflare R2 (optional)
   volunteers         User[]    @relation("OrgVolunteers")
   contentBlocks      SiteContentBlock[]
+  media              Media[]   @relation("OrgMedia")
   createdAt          DateTime  @default(now())
 }
 
@@ -58,6 +62,10 @@ model Animal {
   vaccinated  Boolean
   neutered    Boolean
   image       String?  // Cloudflare R2 (optional)
+  description String?  // Animal description
+  contactPhone String? // Contact phone number
+  status      AnimalStatus @default(ADOPTION)
+  media       Media[]  @relation("AnimalMedia")
   createdBy   User     @relation("CreatedBy", fields: [createdById], references: [id])
   createdById String
   createdAt   DateTime @default(now())
@@ -89,6 +97,39 @@ model VolunteerRegistration {
   createdAt      DateTime @default(now())
 }
 
+model Media {
+  id             String   @id @default(uuid())
+  url            String
+  fileKey        String
+  fileName       String?
+  fileType       String?
+  size           Int?
+  folder         String   @default("general")
+  uploadedBy     User?    @relation("UploadedBy", fields: [userId], references: [id])
+  userId         String?
+  organization   Organization? @relation("OrgMedia", fields: [organizationId], references: [id])
+  organizationId String?
+  animal         Animal?   @relation("AnimalMedia", fields: [animalId], references: [id])
+  animalId       String?
+  createdAt      DateTime @default(now())
+}
+
+model VolunteerStory {
+  id          String   @id @default(uuid())
+  title       String
+  authorName  String
+  date        DateTime
+  image       String?  // Cloudflare R2 (optional)
+  excerpt     String
+  content     String   @db.Text
+  slug        String   @unique
+  featured    Boolean  @default(false)
+  volunteer   User?    @relation("VolunteerStories", fields: [volunteerId], references: [id])
+  volunteerId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 enum Role {
   VOLUNTEER
   ORGANIZATION
@@ -108,4 +149,11 @@ enum ContentType {
   cta
   gallery
   text
+}
+
+enum AnimalStatus {
+  FOSTER
+  ADOPTION
+  STREET
+  OTHER
 }

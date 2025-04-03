@@ -24,8 +24,13 @@ export function Navbar() {
   };
 
   const handleGoToDashboard = () => {
-    // For now assuming volunteers only; you can customize this if org login is added
-    router.push("/volunteer/dashboard");
+    if (session?.user?.role === "organization") {
+      router.push("/organizations/dashboard");
+    } else if (session?.user?.role === "admin") {
+      router.push("/admin/dashboard");
+    } else {
+      router.push("/volunteer/dashboard");
+    }
   };
 
   return (
@@ -44,6 +49,12 @@ export function Navbar() {
             className={pathname === "/organizations" ? "text-foreground" : "text-foreground/60"}
           >
             Organizations
+          </Link>
+          <Link
+            href="/volunteer"
+            className={pathname === "/volunteer" ? "text-foreground" : "text-foreground/60"}
+          >
+            Volunteer
           </Link>
           <Link
             href="/aboutus"

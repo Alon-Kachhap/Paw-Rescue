@@ -2,8 +2,30 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Heart, PawPrint, Users, Binary as Veterinary } from "lucide-react";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { AnimalCard } from "@/components/AnimalCard";
+import { AnimalStatus } from "@prisma/client";
 
-export default function Home() {
+export default async function Home() {
+  // Fetch animals for adoption and foster sections
+  const adoptionAnimals = await prisma.animal.findMany({
+    where: { status: "ADOPTION" as AnimalStatus },
+    take: 6,
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const fosterAnimals = await prisma.animal.findMany({
+    where: { status: "FOSTER" as AnimalStatus },
+    take: 6,
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const otherAnimals = await prisma.animal.findMany({
+    where: { status: "OTHER" as AnimalStatus },
+    take: 6,
+    orderBy: { createdAt: 'desc' },
+  });
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
@@ -29,6 +51,96 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Animals for Adoption Section */}
+      <section className="py-16 container mx-auto px-4">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold mb-2">Animals for Adoption</h2>
+          <p className="text-muted-foreground">
+            Find your perfect companion and give them a forever home.
+          </p>
+        </div>
+
+        {adoptionAnimals.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {adoptionAnimals.map((animal) => (
+              <div key={animal.id}>
+                <AnimalCard animal={animal} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-muted rounded-lg">
+            <p>No animals currently available for adoption. Check back soon!</p>
+          </div>
+        )}
+
+        <div className="text-center mt-8">
+          <Button asChild variant="outline">
+            <Link href="/animals">View All Animals</Link>
+          </Button>
+        </div>
+      </section>
+
+      {/* Animals for Foster Section */}
+      <section className="py-16 bg-blue-50 dark:bg-slate-900">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-2">Animals Needing Foster Care</h2>
+            <p className="text-muted-foreground">
+              Temporarily open your home to an animal in need.
+            </p>
+          </div>
+
+          {fosterAnimals.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {fosterAnimals.map((animal) => (
+                <div key={animal.id}>
+                  <AnimalCard animal={animal} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-muted rounded-lg">
+              <p>No animals currently need fostering. Check back soon!</p>
+            </div>
+          )}
+
+          <div className="text-center mt-8">
+            <Button asChild variant="outline">
+              <Link href="/foster">Learn About Fostering</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Other Animals Section */}
+      {otherAnimals.length > 0 && (
+        <section className="py-16 bg-purple-50 dark:bg-purple-900/20">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold mb-2">Other Special Animals</h2>
+              <p className="text-muted-foreground">
+                These animals have unique needs or circumstances.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {otherAnimals.map((animal) => (
+                <div key={animal.id}>
+                  <AnimalCard animal={animal} />
+                </div>
+              ))}
+            </div>
+
+            <div className="text-center mt-8">
+              <Button asChild variant="outline">
+                <Link href="/animals?status=OTHER">View All Special Cases</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Features Section */}
       <section className="py-20 bg-background">
