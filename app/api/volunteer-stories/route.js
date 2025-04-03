@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { slugify } from "@/lib/utils";
 
 // GET handler - retrieve volunteer stories
 export async function GET(request) {
@@ -181,5 +184,145 @@ export async function POST(request) {
   } catch (error) {
     console.error("Error creating volunteer story:", error);
     return NextResponse.json({ error: "Failed to create volunteer story" }, { status: 500 });
+  }
+}
+
+// PATCH handler - update an existing volunteer story
+export async function PATCH(request) {
+  console.log("PATCH /api/volunteer-stories request received");
+  
+  try {
+    // Get authenticated user
+    const session = await getServerSession(authOptions);
+    
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+    
+    // Get request body
+    const data = await request.json();
+    console.log("Received story update data:", data);
+    
+    const { id, title, authorName, date, excerpt, content, featured, image } = data;
+    
+    if (!id) {
+      return NextResponse.json({ error: "Story ID is required" }, { status: 400 });
+    }
+    
+    // Find the story to update
+    const existingStory = await prisma.volunteerStory.findUnique({
+      where: { id },
+      include: { volunteer: true }
+    });
+    
+    if (!existingStory) {
+      return NextResponse.json({ error: "Story not found" }, { status: 404 });
+    }
+    
+    // Check if the user is authorized to update this story
+    // Only the story creator (volunteer) or an admin can update
+    if (
+      existingStory.volunteerId !== session.user.id && 
+      session.user.role !== "ADMIN" &&
+      session.user.role !== "admin"
+    ) {
+      return NextResponse.json({ error: "Not authorized to update this story" }, { status: 403 });
+    }
+    
+    // Prepare update data - only include fields that are provided
+    const updateData = {};
+    
+    if (title) updateData.title = title;
+    if (authorName) updateData.authorName = authorName;
+    if (date) updateData.date = new Date(date);
+    if (excerpt !== undefined) updateData.excerpt = excerpt;
+    if (content !== undefined) updateData.content = content;
+    if (featured !== undefined) updateData.featured = featured;
+    if (image !== undefined) updateData.image = image;
+    
+    // If title changed and slug needs to be updated
+    if (title && title !== existingStory.title) {
+      const slug = data.slug || slugify(title);
+      
+      // Check if the new slug already exists
+      const slugExists = await prisma.volunteerStory.findFirst({
+        where: {
+          slug,
+          id: { not: id }
+        }
+      });
+      
+      if (slugExists) {
+        return NextResponse.json({ 
+          error: "A story with this slug already exists" 
+        }, { status: 409 });
+      }
+      
+      updateData.slug = slug;
+    }
+    
+    // Update the story
+    const updatedStory = await prisma.volunteerStory.update({
+      where: { id },
+      data: updateData
+    });
+    
+    console.log(`Updated volunteer story: ${updatedStory.title}`);
+    return NextResponse.json(updatedStory);
+  } catch (error) {
+    console.error("Error updating volunteer story:", error);
+    return NextResponse.json({ error: "Failed to update volunteer story" }, { status: 500 });
+  }
+}
+
+// DELETE handler - delete a volunteer story
+export async function DELETE(request) {
+  console.log("DELETE /api/volunteer-stories request received");
+  
+  try {
+    // Get authenticated user
+    const session = await getServerSession(authOptions);
+    
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+    
+    // Get the story ID from URL parameter
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json({ error: "Story ID is required" }, { status: 400 });
+    }
+    
+    // Find the story to delete
+    const story = await prisma.volunteerStory.findUnique({
+      where: { id }
+    });
+    
+    if (!story) {
+      return NextResponse.json({ error: "Story not found" }, { status: 404 });
+    }
+    
+    // Check if the user is authorized to delete this story
+    // Only the story creator (volunteer) or an admin can delete
+    if (
+      story.volunteerId !== session.user.id && 
+      session.user.role !== "ADMIN" &&
+      session.user.role !== "admin"
+    ) {
+      return NextResponse.json({ error: "Not authorized to delete this story" }, { status: 403 });
+    }
+    
+    // Delete the story
+    await prisma.volunteerStory.delete({
+      where: { id }
+    });
+    
+    console.log(`Deleted volunteer story: ${story.title}`);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting volunteer story:", error);
+    return NextResponse.json({ error: "Failed to delete volunteer story" }, { status: 500 });
   }
 } 

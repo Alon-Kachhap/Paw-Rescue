@@ -22,47 +22,27 @@ export function UploadButton({
     setError(null);
 
     try {
-      // Step 1: Get a pre-signed URL from the server
-      const response = await fetch('/api/upload', {
+      // Create a FormData object to send the file
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'animals');
+      formData.append('endpoint', endpoint || 'animalImageUploader');
+
+      // Send the file to our server-side upload endpoint
+      const response = await fetch('/api/upload/server-upload', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileType: file.type,
-          fileName: file.name,
-          size: file.size,
-          folder: 'animals',
-          endpoint: endpoint || 'animalImageUploader'
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Failed to get upload URL');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
       }
 
-      const { uploadUrl, publicUrl } = await response.json();
-
-      // Step 2: Upload the file directly to the storage using the pre-signed URL
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type,
-        },
-        body: file,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file');
-      }
-
-      // Step 3: Call the success callback with the public URL
-      onClientUploadComplete?.({ 
-        url: publicUrl, 
-        name: file.name, 
-        size: file.size 
-      });
+      const result = await response.json();
+      
+      // Call the success callback with the result
+      onClientUploadComplete?.(result);
     } catch (err) {
       console.error("Upload error:", err);
       setError(err.message || 'Upload failed');

@@ -9,25 +9,9 @@ export async function GET(req) {
   try {
     const user = await getUserFromServerSession();
     
-    // Enhanced debugging for user info
-    console.log("User from session:", JSON.stringify({
-      id: user?.id,
-      userId: user?.userId,
-      sub: user?.sub,
-      email: user?.email,
-      role: user?.role
-    }));
-    
     if (!user) {
       console.error("GET /api/animals - No user found in session");
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-    
-    // Normalize userId from various properties
-    const userId = user.id || user.userId || user.sub;
-    if (!userId) {
-      console.error("GET /api/animals - User has no ID");
-      return NextResponse.json({ error: "User ID not found" }, { status: 400 });
     }
     
     // Get query parameters for filtering
@@ -38,87 +22,118 @@ export async function GET(req) {
     const exclude = url.searchParams.get('exclude') || '';
     const limit = parseInt(url.searchParams.get('limit') || '0');
     
-    console.log(`Query params: query=${query}, species=${species}, status=${status}, exclude=${exclude}, limit=${limit}`);
-    
     let animals = [];
     
-    // Get all animals regardless of role
-    console.log(`Fetching animals with filters (user role: ${user.role})`);
+    // Build where clause for filtering
+    const where = {};
     
-    try {
-      // Build where clause for filtering
-      const where = {};
-      
-      // Filter by query text (search in name, species, breed)
-      if (query) {
-        where.OR = [
-          { name: { contains: query, mode: 'insensitive' } },
-          { species: { contains: query, mode: 'insensitive' } },
-          { breed: { contains: query, mode: 'insensitive' } }
-        ];
-      }
-      
-      // Filter by species
-      if (species) {
-        where.species = { contains: species, mode: 'insensitive' };
-      }
-      
-      // Filter by status
-      if (status) {
-        where.status = status;
-      }
-      
-      // Exclude specific animal
-      if (exclude) {
-        where.id = { not: exclude };
-      }
-      
-      animals = await prisma.animal.findMany({
-        where,
-        include: {
-          createdBy: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              image: true,
-              organizationId: true
+    // Add text search filters if query provided
+    if (query) {
+      where.OR = [
+        { name: { contains: query, mode: 'insensitive' } },
+        { species: { contains: query, mode: 'insensitive' } },
+        { breed: { contains: query, mode: 'insensitive' } }
+      ];
+    }
+    
+    // Add other filters
+    if (species) {
+      where.species = { contains: species, mode: 'insensitive' };
+    }
+    
+    if (status) {
+      where.status = status;
+    }
+    
+    if (exclude) {
+      where.id = { not: exclude };
+    }
+    
+    // Handle different roles
+    const userRole = (user.role || '').toUpperCase();
+    
+    if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {
+      // For organization users, get all animals related to the organization
+      if (userRole === 'ORGANIZATION') {
+        // First, find the organization ID for this user
+        const organization = await prisma.organization.findUnique({
+          where: { email: user.email },
+          select: { id: true }
+        });
+        
+        if (organization) {
+          where.OR = [
+            // Animals created by organization volunteers
+            {
+              createdBy: {
+                organizationId: organization.id
+              }
             },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        ...(limit > 0 ? { take: limit } : {})
+            // Animals created by the organization account directly
+            {
+              createdById: user.id
+            }
+          ];
+        } else {
+          // Only show animals created by this user if no organization found
+          where.createdById = user.id;
+        }
+      }
+    } else if (userRole === 'VOLUNTEER') {
+      // For volunteer users, get animals they created or from their organization
+      const volunteer = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { organizationId: true }
       });
       
-      console.log(`GET /api/animals - Found ${animals.length} animals`);
-
-      // Filter out any sample animals that might be in the database
-      const filteredAnimals = animals.filter(animal => 
-        !animal.id.includes('sample') && 
-        animal.id !== 'sample-1' && 
-        animal.id !== 'sample-2' && 
-        animal.id !== 'sample-3' &&
-        !(animal.createdBy && animal.createdBy.id === 'sample')
-      );
-      
-      console.log(`GET /api/animals - After filtering, returning ${filteredAnimals.length} animals`);
-
-      // Transform the data to match the expected format in the frontend
-      const formattedAnimals = filteredAnimals.map(animal => ({
-        ...animal,
-        createdBy: {
-          ...animal.createdBy,
-          // Add a calculated name field for the frontend
-          name: `${animal.createdBy.firstName || ''} ${animal.createdBy.lastName || ''}`.trim() || 'Unknown'
-        }
-      }));
-      
-      return NextResponse.json(formattedAnimals);
-    } catch (queryError) {
-      console.error("Error in animals query:", queryError);
-      return NextResponse.json({ error: "Database query failed" }, { status: 500 });
+      if (volunteer?.organizationId) {
+        where.OR = [
+          // Their own animals
+          { createdById: user.id },
+          // Animals from their organization
+          { createdBy: { organizationId: volunteer.organizationId } }
+        ];
+      } else {
+        // Only their own animals if not part of an organization
+        where.createdById = user.id;
+      }
+    } else {
+      // Default case - only show animals created by this user
+      where.createdById = user.id;
     }
+    
+    console.log(`Executing query with where clause:`, JSON.stringify(where));
+    
+    animals = await prisma.animal.findMany({
+      where,
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            image: true,
+            organizationId: true
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      ...(limit > 0 ? { take: limit } : {})
+    });
+    
+    console.log(`GET /api/animals - Found ${animals.length} animals`);
+    
+    // Transform the data to match the expected format in the frontend
+    const formattedAnimals = animals.map(animal => ({
+      ...animal,
+      createdBy: {
+        ...animal.createdBy,
+        name: `${animal.createdBy.firstName || ''} ${animal.createdBy.lastName || ''}`.trim() || 'Unknown'
+      }
+    }));
+    
+    return NextResponse.json(formattedAnimals);
   } catch (error) {
     console.error("Error in GET /api/animals:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ChevronLeft, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 interface VolunteerStory {
   id: string;
@@ -29,6 +30,7 @@ export default function StoriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
   
   useEffect(() => {
     async function fetchStories() {
@@ -114,6 +116,106 @@ export default function StoriesPage() {
     return new Date(dateString).toLocaleDateString('en-US', options);
   }
   
+  function renderFeaturedStories() {
+    if (filteredStories.some(story => story.featured) && searchTerm === '') {
+      return (
+        <section className="mb-16">
+          <h2 className="text-2xl font-semibold mb-6">Featured Stories</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {filteredStories
+              .filter(story => story.featured)
+              .slice(0, 2)
+              .map(story => (
+                <div key={story.id} className="bg-card rounded-lg overflow-hidden shadow-lg border">
+                  <div className="relative aspect-video">
+                    {story.image ? (
+                      <Image
+                        src={story.image}
+                        alt={story.title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = 'https://images.unsplash.com/photo-1601758177266-bc599de87707?q=80&w=2070';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-800">
+                        <svg className="w-16 h-16 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <h3 className="font-semibold text-xl mb-2">{story.title}</h3>
+                    <p className="text-muted-foreground mb-4">{story.excerpt}</p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">{formatDate(story.date)}</span>
+                      <Button asChild>
+                        <Link href={`/volunteer/stories/${story.slug}`}>
+                          Read Story
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </section>
+      );
+    }
+    return null;
+  }
+  
+  function renderStoryGrid() {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredStories
+          .filter(story => searchTerm !== '' || !story.featured)
+          .map(story => (
+            <div key={story.id} className="bg-card rounded-lg overflow-hidden shadow border h-full flex flex-col">
+              <div className="relative h-48">
+                {story.image ? (
+                  <Image
+                    src={story.image}
+                    alt={story.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://images.unsplash.com/photo-1601758177266-bc599de87707?q=80&w=2070';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-800">
+                    <svg className="w-12 h-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+              <div className="p-6 flex-1 flex flex-col">
+                <h3 className="font-semibold text-lg mb-2">{story.title}</h3>
+                <p className="text-muted-foreground text-sm mb-4 flex-1">{story.excerpt}</p>
+                <div className="flex justify-between items-center mt-auto">
+                  <span className="text-xs text-muted-foreground">{formatDate(story.date)}</span>
+                  <Link
+                    href={`/volunteer/stories/${story.slug}`}
+                    className="text-primary hover:underline text-sm font-medium"
+                  >
+                    Read More
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ))}
+      </div>
+    );
+  }
+  
   return (
     <div className="container mx-auto px-4 py-16">
       <div className="mb-6">
@@ -130,17 +232,6 @@ export default function StoriesPage() {
             Read inspirational stories from our volunteers and discover the impact they've made
             in animal welfare and community service.
           </p>
-          
-          <div className="relative max-w-md mx-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              type="text"
-              placeholder="Search stories..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
         </header>
         
         {loading ? (
@@ -154,6 +245,9 @@ export default function StoriesPage() {
             <Button asChild className="mt-4">
               <Link href="/volunteer">Back to Volunteer Page</Link>
             </Button>
+            <Button onClick={() => window.location.reload()}>
+              Retry
+            </Button>
           </div>
         ) : filteredStories.length === 0 ? (
           <div className="text-center py-12 bg-muted/30 rounded-lg">
@@ -164,100 +258,46 @@ export default function StoriesPage() {
           </div>
         ) : (
           <>
-            {/* Featured stories */}
-            {filteredStories.some(story => story.featured) && searchTerm === '' && (
-              <section className="mb-16">
-                <h2 className="text-2xl font-semibold mb-6">Featured Stories</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {filteredStories
-                    .filter(story => story.featured)
-                    .slice(0, 2)
-                    .map(story => (
-                      <div key={story.id} className="bg-card rounded-lg overflow-hidden shadow-lg border">
-                        <div className="relative aspect-video">
-                          {story.image ? (
-                            <Image
-                              src={story.image}
-                              alt={story.title}
-                              fill
-                              className="object-cover"
-                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = 'https://images.unsplash.com/photo-1601758177266-bc599de87707?q=80&w=2070';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-800">
-                              <svg className="w-16 h-16 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-6">
-                          <h3 className="font-semibold text-xl mb-2">{story.title}</h3>
-                          <p className="text-muted-foreground mb-4">{story.excerpt}</p>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">{formatDate(story.date)}</span>
-                            <Button asChild>
-                              <Link href={`/volunteer/stories/${story.slug}`}>
-                                Read Story
-                              </Link>
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </section>
-            )}
-            
-            {/* All stories */}
-            <section>
-              <h2 className="text-2xl font-semibold mb-6">{searchTerm ? 'Search Results' : 'All Stories'}</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredStories
-                  .filter(story => searchTerm !== '' || !story.featured)
-                  .map(story => (
-                    <div key={story.id} className="bg-card rounded-lg overflow-hidden shadow border h-full flex flex-col">
-                      <div className="relative h-48">
-                        {story.image ? (
-                          <Image
-                            src={story.image}
-                            alt={story.title}
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = 'https://images.unsplash.com/photo-1601758177266-bc599de87707?q=80&w=2070';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-800">
-                            <svg className="w-12 h-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-6 flex-1 flex flex-col">
-                        <h3 className="font-semibold text-lg mb-2">{story.title}</h3>
-                        <p className="text-muted-foreground text-sm mb-4 flex-1">{story.excerpt}</p>
-                        <div className="flex justify-between items-center mt-auto">
-                          <span className="text-xs text-muted-foreground">{formatDate(story.date)}</span>
-                          <Link
-                            href={`/volunteer/stories/${story.slug}`}
-                            className="text-primary hover:underline text-sm font-medium"
-                          >
-                            Read More
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+            {/* Search and Filter Controls */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
+              <div className="relative w-full md:w-auto md:flex-1 max-w-md">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search stories..."
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
+              
+              <div className="flex gap-3 w-full md:w-auto">
+                <div className="w-full md:w-[180px]">
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest First</SelectItem>
+                      <SelectItem value="oldest">Oldest First</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            
+            {/* Featured Stories Section */}
+            {renderFeaturedStories()}
+            
+            {/* All Stories Section */}
+            <section>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">All Stories</h2>
+                <div className="text-sm text-muted-foreground">
+                  Found {filteredStories.length} stories
+                </div>
+              </div>
+              
+              {renderStoryGrid()}
             </section>
           </>
         )}

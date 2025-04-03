@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -38,11 +38,11 @@ import { UploadButton } from "@/components/ui/upload-button";
 import { Textarea } from "@/components/ui/textarea";
 
 const initialFormData = {
-  name: "",
-  species: "",
-  breed: "",
-  neutered: false,
-  vaccinated: false,
+    name: "",
+    species: "",
+    breed: "",
+    neutered: false,
+      vaccinated: false,
   status: "ADOPTION",
   image: "",
   description: "",
@@ -57,32 +57,34 @@ export default function AnimalsList({ animals = [], volunteers = [] }) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasDirectFetched, setHasDirectFetched] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const formRef = useRef(null);
   
-  // Debug logging
+  // Initialize animals from props
   useEffect(() => {
-    if (Array.isArray(animals) && animals.length > 0) {
-      setLocalAnimals(animals);
-    } else if (!hasDirectFetched) {
-      fetchAnimalsDirectly();
-      setHasDirectFetched(true);
+    try {
+      if (Array.isArray(animals)) {
+        console.log(`Setting ${animals.length} animals from props`);
+        setLocalAnimals(animals);
+      } else {
+        console.error("Animals prop is not an array:", animals);
+        setHasError(true);
+      }
+    } catch (error) {
+      console.error("Error initializing animals:", error);
+      setHasError(true);
+    } finally {
+      setIsLoading(false);
     }
   }, [animals]);
   
-  // Add auto-refresh for animal data every 5 seconds
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      fetchAnimalsDirectly();
-    }, 5000);
-    
-    // Clean up interval on component unmount
-    return () => clearInterval(intervalId);
-  }, []);
-  
-  // Function to fetch animals directly
+  // Function to fetch animals directly with better error handling
   const fetchAnimalsDirectly = async () => {
     try {
+      setIsLoading(true);
+      console.log("Fetching animals directly from API");
+      
       const response = await fetch('/api/animals', {
         headers: {
           'Cache-Control': 'no-cache',
@@ -94,13 +96,28 @@ export default function AnimalsList({ animals = [], volunteers = [] }) {
         throw new Error(`API failed with status ${response.status}`);
       }
       
-      const data = await response.json();
+      const text = await response.text();
+      let data;
       
-      if (Array.isArray(data) && data.length > 0) {
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error("Error parsing API response:", parseError, "Raw text:", text);
+        throw new Error("Invalid response format");
+      }
+      
+      if (Array.isArray(data)) {
+        console.log(`API returned ${data.length} animals`);
         setLocalAnimals(data);
+      } else {
+        console.error("API did not return an array:", data);
+        throw new Error("Invalid data format");
       }
     } catch (error) {
       console.error("Error fetching animals:", error);
+      setHasError(true);
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -224,11 +241,6 @@ export default function AnimalsList({ animals = [], volunteers = [] }) {
       
       setOpen(false);
       setFormData(initialFormData);
-      
-      // Refresh data from API after a short delay
-      setTimeout(() => {
-        fetchAnimalsDirectly();
-      }, 500);
     } catch (error) {
       console.error("Error submitting form:", error);
       toast.error(error.message || "An error occurred while saving the animal");
@@ -237,25 +249,30 @@ export default function AnimalsList({ animals = [], volunteers = [] }) {
     }
   };
   
-  // Filter animals based on search term and remove any potential sample data
-  const filteredAnimals = Array.isArray(localAnimals) 
-    ? localAnimals
-        .filter(animal => 
-          // First filter out any sample data by checking for sample ID prefix or other sample indicators
-          !animal.id.includes('sample') && 
-          animal.id !== 'sample-1' && 
-          animal.id !== 'sample-2' && 
-          animal.id !== 'sample-3' &&
-          !(animal.createdBy && animal.createdBy.id === 'sample')
-        )
-        .filter((animal) =>
-          // Then filter by search term
-          animal.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          animal.species?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          animal.breed?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          animal.status?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-    : [];
+  // Improved filtering to be more robust
+  const filteredAnimals = useMemo(() => {
+    if (!Array.isArray(localAnimals)) {
+      console.error("localAnimals is not an array:", localAnimals);
+      return [];
+    }
+    
+    return localAnimals
+      .filter(animal => {
+        // Ensure animal is valid
+        if (!animal || typeof animal !== 'object') return false;
+        
+        // Filter by search term if provided
+        if (!searchTerm) return true;
+        
+        const term = searchTerm.toLowerCase();
+        return (
+          (animal.name && animal.name.toLowerCase().includes(term)) ||
+          (animal.species && animal.species.toLowerCase().includes(term)) ||
+          (animal.breed && animal.breed.toLowerCase().includes(term)) ||
+          (animal.status && animal.status.toLowerCase().includes(term))
+        );
+      });
+  }, [localAnimals, searchTerm]);
   
   // Group by status
   const animalsByStatus = {
@@ -292,269 +309,316 @@ export default function AnimalsList({ animals = [], volunteers = [] }) {
     }
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
-          <Input
-            type="search"
-            placeholder="Search animals..."
-            className="pl-9"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+  // Add loading and error states to the return
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  if (hasError) {
+    return (
+      <div className="bg-red-50 border-l-4 border-red-500 p-4">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-red-800">
+              Error loading animals
+            </h3>
+            <div className="mt-2 text-sm text-red-700">
+              <p>There was a problem loading the animals data. Please try refreshing the page.</p>
+              <button 
+                onClick={fetchAnimalsDirectly} 
+                className="mt-2 px-4 py-2 bg-red-100 text-red-800 rounded hover:bg-red-200"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+      </div>
+    );
+  }
+  
+  return (
+    <div>
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mb-4 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs">
+          Original animals: {animals.length} | 
+          Local animals: {localAnimals.length} | 
+          Filtered animals: {filteredAnimals.length}
+        </div>
+      )}
+      
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <Input
+              type="search"
+              placeholder="Search animals..."
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={handleAdd}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Animal
-            </Button>
+              <Button onClick={handleAdd}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Animal
+              </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[550px]">
+            <DialogContent className="sm:max-w-[550px]">
             <DialogHeader>
               <DialogTitle>
-                {animalToEdit ? "Edit Animal" : "Add New Animal"}
+                  {animalToEdit ? "Edit Animal" : "Add New Animal"}
               </DialogTitle>
-              <DialogDescription>
-                {animalToEdit 
-                  ? "Update the animal's information below." 
-                  : "Fill in the details to add a new animal."}
-              </DialogDescription>
+                <DialogDescription>
+                  {animalToEdit 
+                    ? "Update the animal's information below." 
+                    : "Fill in the details to add a new animal."}
+                </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 py-4" ref={formRef}>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="col-span-1">
-                  <Label htmlFor="species">Species</Label>
-                  <Input
-                    id="species"
-                    name="species"
-                    value={formData.species}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="col-span-1">
-                  <Label htmlFor="breed">Breed</Label>
-                  <Input
-                    id="breed"
-                    name="breed"
-                    value={formData.breed}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => handleSelectChange("status", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ADOPTION">For Adoption</SelectItem>
-                      <SelectItem value="FOSTER">Foster</SelectItem>
-                      <SelectItem value="STREET">Street Dog</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="image">Image</Label>
-                  <div className="flex flex-col space-y-2">
-                    {formData.image && (
-                      <div className="relative w-full h-40 mt-2 mb-2 rounded-md overflow-hidden">
-                        <img 
-                          src={formData.image} 
-                          alt="Animal preview" 
-                          className="w-full h-full object-cover"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-2 right-2"
-                          onClick={() => setFormData({...formData, image: ""})}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    )}
-                    {!formData.image && (
-                      <div className="border border-dashed border-gray-300 rounded-md p-6 flex flex-col items-center justify-center">
-                        <p className="text-sm text-gray-500 mb-2">Upload an image of the animal</p>
-                        <UploadButton 
-                          endpoint="animalImageUploader"
-                          onClientUploadComplete={handleImageUpload}
-                          onUploadError={(error) => {
-                            toast.error(`Error uploading: ${error.message}`);
-                          }}
-                        />
-                      </div>
-                    )}
+              <form onSubmit={handleSubmit} className="space-y-4 py-4" ref={formRef}>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Label htmlFor="name">Name</Label>
+                <Input
+                      id="name"
+                  name="name"
+                  value={formData.name}
+                      onChange={handleInputChange}
+                  required
+                />
+              </div>
+                  <div className="col-span-1">
+                    <Label htmlFor="species">Species</Label>
+                <Input
+                      id="species"
+                  name="species"
+                  value={formData.species}
+                      onChange={handleInputChange}
+                  required
+                />
+              </div>
+                  <div className="col-span-1">
+                    <Label htmlFor="breed">Breed</Label>
+                <Input
+                      id="breed"
+                  name="breed"
+                  value={formData.breed}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => handleSelectChange("status", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ADOPTION">For Adoption</SelectItem>
+                        <SelectItem value="FOSTER">Foster</SelectItem>
+                        <SelectItem value="STREET">Street Dog</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="image">Image</Label>
+                    <div className="flex flex-col space-y-2">
+                      {formData.image && (
+                        <div className="relative w-full h-40 mt-2 mb-2 rounded-md overflow-hidden">
+                          <img 
+                            src={formData.image} 
+                            alt="Animal preview" 
+                            className="w-full h-full object-cover"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-2 right-2"
+                            onClick={() => setFormData({...formData, image: ""})}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      )}
+                      {!formData.image && (
+                        <div className="border border-dashed border-gray-300 rounded-md p-6 flex flex-col items-center justify-center">
+                          <p className="text-sm text-gray-500 mb-2">Upload an image of the animal</p>
+                          <UploadButton 
+                            endpoint="animalImageUploader"
+                            onClientUploadComplete={handleImageUpload}
+                            onUploadError={(error) => {
+                              toast.error(`Error uploading: ${error.message}`);
+                            }}
+                          />
+                        </div>
+                      )}
+                      <Input
+                        id="image"
+                        name="image"
+                        placeholder="Or enter image URL"
+                        value={formData.image}
+                        onChange={handleInputChange}
+                />
+              </div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="neutered"
+                        name="neutered"
+                        checked={formData.neutered}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="neutered" className="text-sm font-medium">
+                        Neutered
+                      </Label>
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="vaccinated"
+                    name="vaccinated"
+                    checked={formData.vaccinated}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="vaccinated" className="text-sm font-medium">
+                        Vaccinated
+                      </Label>
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="contactPhone">Contact Phone (Optional)</Label>
                     <Input
-                      id="image"
-                      name="image"
-                      placeholder="Or enter image URL"
-                      value={formData.image}
+                      id="contactPhone"
+                      name="contactPhone"
+                      value={formData.contactPhone}
                       onChange={handleInputChange}
+                      placeholder="(123) 456-7890"
                     />
-                  </div>
                 </div>
-                <div className="col-span-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="neutered"
-                      name="neutered"
-                      checked={formData.neutered}
+                  <div className="col-span-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      value={formData.description}
                       onChange={handleInputChange}
-                      className="h-4 w-4 rounded border-gray-300"
+                      placeholder="Share details about this animal's personality, history, and needs..."
+                      rows={4}
                     />
-                    <Label htmlFor="neutered" className="text-sm font-medium">
-                      Neutered
-                    </Label>
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="vaccinated"
-                      name="vaccinated"
-                      checked={formData.vaccinated}
-                      onChange={handleInputChange}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                    <Label htmlFor="vaccinated" className="text-sm font-medium">
-                      Vaccinated
-                    </Label>
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="contactPhone">Contact Phone (Optional)</Label>
-                  <Input
-                    id="contactPhone"
-                    name="contactPhone"
-                    value={formData.contactPhone}
-                    onChange={handleInputChange}
-                    placeholder="(123) 456-7890"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    placeholder="Share details about this animal's personality, history, and needs..."
-                    rows={4}
-                  />
                 </div>
               </div>
-              <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setOpen(false)}
-                  disabled={isSubmitting}
-                >
+                <DialogFooter>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setOpen(false)}
+                    disabled={isSubmitting}
+                  >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>Saving...</>
-                  ) : animalToEdit ? (
-                    <>Save Changes</>
-                  ) : (
-                    <>Create Animal</>
-                  )}
+                  <Button 
+                    type="submit"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>Saving...</>
+                    ) : animalToEdit ? (
+                      <>Save Changes</>
+                    ) : (
+                      <>Create Animal</>
+                    )}
                 </Button>
-              </DialogFooter>
+                </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+        </div>
 
-      {/* Handle empty state */}
-      {!Array.isArray(localAnimals) || localAnimals.length === 0 ? (
-        <EmptyState
-          title="No animals yet"
-          description="Add your first animal to get started"
-          icon={<Plus className="h-10 w-10" />}
-          action={
-            <Button onClick={handleAdd}>
-              Add Animal
+        {/* Handle empty state */}
+        {!Array.isArray(localAnimals) || localAnimals.length === 0 ? (
+          <EmptyState
+            title="No animals yet"
+            description="Add your first animal to get started"
+            icon={<Plus className="h-10 w-10" />}
+            action={
+              <Button onClick={handleAdd}>
+                Add Animal
+              </Button>
+            }
+          />
+        ) : filteredAnimals.length === 0 ? (
+          <div className="text-center py-10 border rounded-md">
+            <p className="text-muted-foreground">No animals matching '{searchTerm}'</p>
+            <Button variant="link" onClick={() => setSearchTerm("")}>
+              Clear search
             </Button>
-          }
-        />
-      ) : filteredAnimals.length === 0 ? (
-        <div className="text-center py-10 border rounded-md">
-          <p className="text-muted-foreground">No animals matching '{searchTerm}'</p>
-          <Button variant="link" onClick={() => setSearchTerm("")}>
-            Clear search
-          </Button>
-        </div>
-      ) : (
-        // Show animals grouped by status
-        <div className="space-y-8">
-          {/* Adoption section */}
-          {animalsByStatus.ADOPTION.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-3 text-green-600">For Adoption</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {animalsByStatus.ADOPTION.map(renderAnimalCard)}
+          </div>
+        ) : (
+          // Show animals grouped by status
+          <div className="space-y-8">
+            {/* Adoption section */}
+            {animalsByStatus.ADOPTION.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-green-600">For Adoption</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {animalsByStatus.ADOPTION.map(renderAnimalCard)}
+                </div>
               </div>
-            </div>
-          )}
-          
-          {/* Foster section */}
-          {animalsByStatus.FOSTER.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-3 text-blue-600">Foster</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {animalsByStatus.FOSTER.map(renderAnimalCard)}
+            )}
+            
+            {/* Foster section */}
+            {animalsByStatus.FOSTER.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-blue-600">Foster</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {animalsByStatus.FOSTER.map(renderAnimalCard)}
+                </div>
               </div>
-            </div>
-          )}
-          
-          {/* Street Dog section */}
-          {animalsByStatus.STREET.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-3 text-orange-600">Street Dogs</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {animalsByStatus.STREET.map(renderAnimalCard)}
+            )}
+            
+            {/* Street Dog section */}
+            {animalsByStatus.STREET.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-orange-600">Street Dogs</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {animalsByStatus.STREET.map(renderAnimalCard)}
+                </div>
               </div>
-            </div>
-          )}
-          
-          {/* Other section */}
-          {animalsByStatus.OTHER.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-3 text-gray-600">Other</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {animalsByStatus.OTHER.map(renderAnimalCard)}
+            )}
+            
+            {/* Other section */}
+            {animalsByStatus.OTHER.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-gray-600">Other</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {animalsByStatus.OTHER.map(renderAnimalCard)}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
   
@@ -600,11 +664,11 @@ export default function AnimalsList({ animals = [], volunteers = [] }) {
             <div className="flex space-x-1">
               <Button variant="ghost" size="icon" onClick={() => handleEdit(animal)}>
                 <Edit className="h-4 w-4" />
-              </Button>
+                      </Button>
               <Button variant="ghost" size="icon" className="text-red-500" onClick={() => handleDelete(animal.id)}>
                 <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+                      </Button>
+                    </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -627,8 +691,8 @@ export default function AnimalsList({ animals = [], volunteers = [] }) {
               • {new Date(animal.createdAt).toLocaleDateString()}
             </p>
           </div>
-        </CardContent>
-      </Card>
-    );
+      </CardContent>
+    </Card>
+  );
   }
 }

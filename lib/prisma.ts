@@ -1,14 +1,26 @@
 // lib/prisma.ts
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+let prisma: PrismaClient;
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: ["query"],
-  });
+try {
+  // Check if PrismaClient is defined (it's not during build time in some environments)
+  if (process.env.NODE_ENV === 'production') {
+    prisma = new PrismaClient();
+  } else {
+    // Prevent multiple instances during development
+    if (!global.prisma) {
+      global.prisma = new PrismaClient({
+        log: ['query', 'error', 'warn'],
+      });
+    }
+    prisma = global.prisma;
+  }
+} catch (error) {
+  console.error('Failed to initialize Prisma client:', error);
+  throw new Error(
+    'Could not initialize Prisma client. Please ensure you have run "prisma generate" and configured your database URL correctly.'
+  );
+}
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+export { prisma };

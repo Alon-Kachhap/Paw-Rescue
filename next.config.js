@@ -2,19 +2,47 @@
 const nextConfig = {
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', 'localhost:3001'],
+      allowedOrigins: [process.env.NEXTAUTH_URL || 'localhost:3000'],
     },
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: process.env.NODE_ENV === 'production',
   },
   images: {
+    domains: ['pub-305030d3e1754baeace4d4de4a58fabb.r2.dev'],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '**',
       },
     ],
+  },
+  poweredByHeader: false,
+  compress: true,
+  productionBrowserSourceMaps: false,
+  // Configure CORS
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
+          { key: 'Access-Control-Allow-Origin', value: process.env.NEXTAUTH_URL || '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
+          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
+        ],
+      },
+    ];
+  },
+  reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        source: '/foster',
+        destination: '/animals',
+        permanent: true,
+      },
+    ]
   },
 };
 
